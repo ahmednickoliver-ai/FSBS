@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSBS: Strategic Execution Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Fonts: Merriweather (Headings) & Lato (Body) per Brand Guidelines -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Merriweather:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chosen Palette: Deep Navy & Gold (Trust & Rigor) -->
+    <!-- Application Structure Plan: The SPA is designed as a "Strategic Command Center." 
+         1. Hero: Immediate Mission Statement.
+         2. The Gap Analysis: Interactive Radar chart visualizing the 'Competence Gap' problem/solution.
+         3. The 10-Cluster Engine: The core interactive element. A grid of clusters that opens detailed 'Unit Breakdown' modals, solving the issue of displaying dense hierarchical data (Teams/Units).
+         4. Operational Hierarchy: Visual breakdown of the 3-Level structure.
+         5. Program Portfolio: Tabbed interface to categorize events by frequency (Annual vs Monthly vs Weekly).
+         6. Roadmap: Vertical timeline for execution phases.
+    -->
+    <!-- Visualization & Content Choices: 
+         - Gap Analysis -> Compare Theory vs Practice -> Radar Chart -> Tooltip Interaction -> Chart.js.
+         - Cluster Network -> Organize Structure -> Interactive Grid -> Modal Expansion -> JS DOM Manipulation.
+         - Program Tiers -> Organize Activities -> Tabbed Views -> Click to switch -> JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used (except FontAwesome fonts). NO Mermaid JS used. -->
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fsbs: {
+                            navy: '#003366', // Primary: Trust
+                            teal: '#004D66', // Secondary
+                            gold: '#AE8F6F', // Accent: Rigor/Bronze Gold
+                            light: '#F4F8F9',
+                            dark: '#1E293B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Lato', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #F4F8F9;
+            color: #1E293B;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-color: #AE8F6F;
+        }
+        /* Custom Scrollbar for Modals */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #003366;
+            border-radius: 4px;
+        }
+        .tab-active {
+            border-bottom: 3px solid #AE8F6F;
+            color: #003366;
+            font-weight: 700;
+        }
+        .tab-inactive {
+            border-bottom: 3px solid transparent;
+            color: #64748B;
+        }
+        .tab-inactive:hover {
+            color: #003366;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-fsbs-navy text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <!-- CSS Logo Placeholder -->
+                <div class="w-10 h-10 border-2 border-fsbs-gold flex items-end justify-center pb-1 rounded">
+                    <div class="w-1 h-6 bg-fsbs-gold mx-0.5"></div>
+                    <div class="w-1 h-4 bg-fsbs-gold mx-0.5"></div>
+                    <div class="w-1 h-8 bg-white mx-0.5"></div>
+                </div>
+                <span class="font-serif font-bold text-2xl tracking-wide">FSBS</span>
+            </div>
+            <div class="hidden md:flex space-x-8 text-sm font-semibold tracking-wider">
+                <a href="#vision" class="hover:text-fsbs-gold transition-colors">VISION</a>
+                <a href="#clusters" class="hover:text-fsbs-gold transition-colors">CLUSTERS</a>
+                <a href="#hierarchy" class="hover:text-fsbs-gold transition-colors">HIERARCHY</a>
+                <a href="#programs" class="hover:text-fsbs-gold transition-colors">PROGRAMS</a>
+                <a href="#roadmap" class="hover:text-fsbs-gold transition-colors">ROADMAP</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header id="vision" class="relative bg-fsbs-navy text-white py-20 overflow-hidden">
+        <!-- Background Pattern -->
+        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#AE8F6F 1px, transparent 1px); background-size: 30px 30px;"></div>
+        
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="inline-block px-3 py-1 border border-fsbs-gold text-fsbs-gold text-xs font-bold tracking-widest mb-4">FOUNDER'S MANUAL V5</div>
+                    <h1 class="font-serif text-4xl md:text-6xl font-bold leading-tight mb-6">
+                        Bridging the <span class="text-fsbs-gold">Competence Gap</span>.
+                    </h1>
+                    <p class="text-lg text-gray-300 mb-8 leading-relaxed">
+                        The definitive operational blueprint for transforming Ahmadu Bello University students from theoretical learners into project-ready leaders.
+                    </p>
+                    <div class="flex gap-4">
+                        <a href="#clusters" class="bg-fsbs-gold text-fsbs-navy px-6 py-3 rounded font-bold hover:bg-white hover:text-fsbs-navy transition-colors">
+                            Explore the 10 Clusters
+                        </a>
+                        <button onclick="scrollToSection('impact')" class="border border-white px-6 py-3 rounded font-bold hover:bg-white hover:text-fsbs-navy transition-colors">
+                            View Strategy
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Interactive Visualization: The Problem vs The Goal -->
+                <div class="bg-white/5 p-6 rounded-xl border border-white/10">
+                    <h3 class="font-serif text-xl mb-4 text-center text-gray-200">The Transformation Matrix</h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="competenceChart"></canvas>
+                    </div>
+                    <p class="text-center text-xs text-gray-400 mt-2">Comparing the Traditional Student vs. The FSBS Graduate</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Strategic Core -->
+    <section id="impact" class="py-16 container mx-auto px-6">
+        <div class="text-center mb-16">
+            <h2 class="font-serif text-3xl text-fsbs-navy font-bold mb-4">Management Philosophy: Hybrid Rigor</h2>
+            <p class="max-w-2xl mx-auto text-gray-600">Advised by PMP Mentors, we balance stability with speed.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Waterfall -->
+            <div class="bg-white p-8 rounded-xl shadow-sm border-l-4 border-fsbs-navy">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-fsbs-navy text-white rounded-full flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <h3 class="font-serif text-xl font-bold text-fsbs-navy">Rigid Planning (Waterfall)</h3>
+                </div>
+                <p class="text-gray-600 mb-4">Used for foundational tasks where sequential approval is mandatory. This ensures risk mitigation and structural integrity.</p>
+                <div class="bg-gray-50 p-4 rounded border border-gray-200 text-sm">
+                    <strong class="text-fsbs-teal">Applications:</strong> Branding (Task 4), Financial Protocols, Leadership Roster, Institutional Proposals.
+                </div>
+            </div>
+
+            <!-- Agile -->
+            <div class="bg-white p-8 rounded-xl shadow-sm border-l-4 border-fsbs-gold">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-fsbs-gold text-fsbs-navy rounded-full flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h3 class="font-serif text-xl font-bold text-fsbs-navy">Flexible Execution (Agile)</h3>
+                </div>
+                <p class="text-gray-600 mb-4">Used for program execution. Allows clusters to "fail fast," iterate content based on feedback, and adjust logistics on the fly.</p>
+                <div class="bg-gray-50 p-4 rounded border border-gray-200 text-sm">
+                    <strong class="text-fsbs-teal">Applications:</strong> Pilot Programs (Task 5), Weekly Workshops, Content Iteration.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- The 10 Cluster Engine -->
+    <section id="clusters" class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-12">
+                <div>
+                    <h2 class="font-serif text-3xl md:text-4xl text-fsbs-navy font-bold mb-2">The 10-Cluster Decentralized Network</h2>
+                    <p class="text-gray-500">Click any cluster card to view its detailed Operational Units and Teaching Mandate.</p>
+                </div>
+                <div class="text-sm font-bold text-fsbs-gold mt-4 md:mt-0">
+                    <i class="fa-solid fa-circle-info mr-2"></i> MAX 30 MEMBERS PER UNIT
+                </div>
+            </div>
+
+            <!-- Grid of Clusters -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="clusterGrid">
+                <!-- Populated via JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal for Cluster Details -->
+    <div id="clusterModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-fsbs-navy bg-opacity-90 transition-opacity" onclick="closeModal()"></div>
+
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl">
+                    
+                    <!-- Modal Header -->
+                    <div class="bg-fsbs-navy px-4 py-5 sm:px-6 flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-serif font-bold leading-6 text-white" id="modalTitle">Cluster Name</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-fsbs-gold" id="modalCoordinator">Coordinator Info</p>
+                        </div>
+                        <button type="button" class="text-gray-400 hover:text-white" onclick="closeModal()">
+                            <i class="fa-solid fa-xmark text-2xl"></i>
+                        </button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="px-4 py-5 sm:p-6 max-h-[70vh] overflow-y-auto custom-scroll">
+                        <div class="mb-6">
+                            <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Core Function</h4>
+                            <p class="text-fsbs-navy text-lg" id="modalFunction">Function description...</p>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-lg border border-gray-200 p-1">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Operational Team (Level 2)</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Project Units (Level 3)</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Peer-Teaching Mandate</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="modalTableBody">
+                                    <!-- Content Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" onclick="closeModal()">Close View</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hierarchy & Structure -->
+    <section id="hierarchy" class="py-20 bg-fsbs-navy text-white">
+        <div class="container mx-auto px-6">
+            <h2 class="font-serif text-3xl text-center mb-12 text-white">Structural Blueprint: 3-Level Hierarchy</h2>
+            
+            <div class="flex flex-col md:flex-row gap-8 justify-center items-stretch">
+                <!-- Level 1 -->
+                <div class="flex-1 bg-white/10 backdrop-blur-sm p-8 rounded-xl border-t-4 border-fsbs-gold text-center">
+                    <div class="w-16 h-16 bg-fsbs-gold text-fsbs-navy rounded-full flex items-center justify-center text-2xl mx-auto mb-4 font-bold">1</div>
+                    <h3 class="font-serif text-xl font-bold mb-2">Coordinator / Deputy</h3>
+                    <p class="text-sm text-gray-300 mb-4">The Strategist</p>
+                    <ul class="text-left text-sm space-y-2 text-gray-200">
+                        <li><i class="fa-solid fa-check text-fsbs-gold mr-2"></i>Sets Cluster Vision</li>
+                        <li><i class="fa-solid fa-check text-fsbs-gold mr-2"></i>Manages Team Leads</li>
+                        <li><i class="fa-solid fa-check text-fsbs-gold mr-2"></i>Submits Weekly Report</li>
+                    </ul>
+                </div>
+
+                <!-- Connector -->
+                <div class="hidden md:flex flex-col justify-center text-fsbs-gold text-2xl">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+
+                <!-- Level 2 -->
+                <div class="flex-1 bg-white/10 backdrop-blur-sm p-8 rounded-xl border-t-4 border-white text-center">
+                    <div class="w-16 h-16 bg-white text-fsbs-navy rounded-full flex items-center justify-center text-2xl mx-auto mb-4 font-bold">2</div>
+                    <h3 class="font-serif text-xl font-bold mb-2">Operational Team Lead</h3>
+                    <p class="text-sm text-gray-300 mb-4">The Manager</p>
+                    <ul class="text-left text-sm space-y-2 text-gray-200">
+                        <li><i class="fa-solid fa-check text-white mr-2"></i>Appointed from Top Pioneers</li>
+                        <li><i class="fa-solid fa-check text-white mr-2"></i>Oversees Specific Area</li>
+                        <li><i class="fa-solid fa-check text-white mr-2"></i>Ensures Unit Staffing</li>
+                    </ul>
+                </div>
+
+                <!-- Connector -->
+                <div class="hidden md:flex flex-col justify-center text-fsbs-gold text-2xl">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+
+                <!-- Level 3 -->
+                <div class="flex-1 bg-white/10 backdrop-blur-sm p-8 rounded-xl border-t-4 border-fsbs-teal text-center">
+                    <div class="w-16 h-16 bg-fsbs-teal text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4 font-bold">3</div>
+                    <h3 class="font-serif text-xl font-bold mb-2">Project Unit</h3>
+                    <p class="text-sm text-gray-300 mb-4">The Executor (Max 30)</p>
+                    <ul class="text-left text-sm space-y-2 text-gray-200">
+                        <li><i class="fa-solid fa-check text-fsbs-teal mr-2"></i>Executes Core Tasks</li>
+                        <li><i class="fa-solid fa-check text-fsbs-teal mr-2"></i>Peer-to-Peer Teaching</li>
+                        <li><i class="fa-solid fa-check text-fsbs-teal mr-2"></i>Reports Blockers Upward</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Program Portfolio -->
+    <section id="programs" class="py-20 container mx-auto px-6">
+        <div class="mb-12">
+            <h2 class="font-serif text-3xl text-fsbs-navy font-bold mb-4">The Program Portfolio</h2>
+            <p class="text-gray-600">Executing the mission across three strategic tiers.</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-200 mb-8">
+            <button onclick="switchTab('tier1')" id="tab-tier1" class="tab-active px-6 py-3 text-sm font-medium transition-colors">
+                Tier 1: Annual Flagships
+            </button>
+            <button onclick="switchTab('tier2')" id="tab-tier2" class="tab-inactive px-6 py-3 text-sm font-medium transition-colors">
+                Tier 2: Monthly Programs
+            </button>
+            <button onclick="switchTab('tier3')" id="tab-tier3" class="tab-inactive px-6 py-3 text-sm font-medium transition-colors">
+                Tier 3: Weekly Activities
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div id="tier1-content" class="grid md:grid-cols-2 gap-6">
+            <!-- Content injected via JS -->
+        </div>
+        <div id="tier2-content" class="hidden grid md:grid-cols-2 gap-6"></div>
+        <div id="tier3-content" class="hidden grid md:grid-cols-2 gap-6"></div>
+
+    </section>
+
+    <!-- Roadmap -->
+    <section id="roadmap" class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <h2 class="font-serif text-3xl text-center text-fsbs-navy font-bold mb-16">Strategic Execution Roadmap</h2>
+            
+            <div class="relative">
+                <!-- Vertical Line -->
+                <div class="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gray-200"></div>
+
+                <!-- Phase 1 -->
+                <div class="relative flex justify-between items-center mb-16">
+                    <div class="w-5/12 text-right pr-8">
+                        <h3 class="font-serif font-bold text-xl text-fsbs-navy">Phase 1: Foundation</h3>
+                        <span class="text-xs font-bold text-gray-400">NOV - DEC 2025</span>
+                        <p class="text-sm text-gray-600 mt-2">Leadership roster locked. Branding approved (Task 4). 9 Pilot concepts finalized.</p>
+                    </div>
+                    <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 bg-fsbs-navy border-4 border-white rounded-full z-10"></div>
+                    <div class="w-5/12 pl-8"></div>
+                </div>
+
+                <!-- Phase 2 -->
+                <div class="relative flex justify-between items-center mb-16">
+                    <div class="w-5/12 text-right pr-8"></div>
+                    <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 bg-fsbs-gold border-4 border-white rounded-full z-10"></div>
+                    <div class="w-5/12 pl-8">
+                        <h3 class="font-serif font-bold text-xl text-fsbs-navy">Phase 2: Mobilization</h3>
+                        <span class="text-xs font-bold text-gray-400">NEXT 4 WEEKS</span>
+                        <p class="text-sm text-gray-600 mt-2">Unit creation & staffing. Silent Awareness execution. 'Know Your Numbers' & 'Stash Hub' Pilots launched.</p>
+                    </div>
+                </div>
+
+                <!-- Phase 3 -->
+                <div class="relative flex justify-between items-center">
+                    <div class="w-5/12 text-right pr-8">
+                        <h3 class="font-serif font-bold text-xl text-fsbs-navy">Phase 3: Official Launch</h3>
+                        <span class="text-xs font-bold text-gray-400">JAN 2026</span>
+                        <p class="text-sm text-gray-600 mt-2">Grand Unveiling Exhibition. Mass enrollment into clusters. FSBS Talk Show premiere.</p>
+                    </div>
+                    <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 bg-fsbs-teal border-4 border-white rounded-full z-10"></div>
+                    <div class="w-5/12 pl-8"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-fsbs-dark text-white py-12 border-t border-fsbs-gold">
+        <div class="container mx-auto px-6 text-center">
+            <div class="mb-6">
+                <h4 class="font-serif text-2xl font-bold mb-2">FSBS</h4>
+                <p class="text-gray-400 text-sm">For Students, By Students</p>
+            </div>
+            <div class="flex justify-center gap-8 text-gray-400 text-sm mb-8">
+                <span><i class="fa-brands fa-linkedin mr-2"></i>Official LinkedIn</span>
+                <span><i class="fa-solid fa-envelope mr-2"></i>Official Gmail</span>
+            </div>
+            <p class="text-xs text-gray-600">© 2025 FSBS Initiative. Operational Blueprint.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- 1. DATA FOR CLUSTERS ---
+        const clusters = [
+            {
+                id: "C1", name: "Technology, Robotics & AI", icon: "fa-microchip",
+                coordinator: "Ibrahim Abdulwahab (Khalifa)",
+                function: "Teaching practical technical skills and implementing innovative solutions.",
+                table: [
+                    { team: "Innovation & Curriculum", unit: "AI Literacy Unit, Robotics Unit", mandate: "Teaches AI tools & Hardware skills." },
+                    { team: "Digital Tools & Proficiency", unit: "Digital Tools Unit, Tech Support Unit", mandate: "Mastery of Excel/Figma & Troubleshooting." }
+                ]
+            },
+            {
+                id: "C2", name: "Media, Branding & Content", icon: "fa-bullhorn",
+                coordinator: "Fatima Muhammad (Zarah)",
+                function: "Professionalizing student communication and enforcing the brand.",
+                table: [
+                    { team: "Visual Identity & Design", unit: "Graphics & Brand Unit, Photography Unit", mandate: "Enforces style guide & teaches composition." },
+                    { team: "Production & Broadcast", unit: "Video Production Unit, Content Writing Unit", mandate: "Scripting, filming, & journalistic integrity." }
+                ]
+            },
+            {
+                id: "C3", name: "Arts, Literature & Culture", icon: "fa-feather-pointed",
+                coordinator: "Ola Faith Modupe (Faith)",
+                function: "Cultivating identity, critical thinking, and confidence through expression.",
+                table: [
+                    { team: "Literary Arts & Publishing", unit: "Creative Arts Unit, Research Unit", mandate: "Expressive writing, critique & cultural literacy." },
+                    { team: "Events & Expression", unit: "Events & Entertainment Unit", mandate: "Organizes cultural hangouts & dialogues." }
+                ]
+            },
+            {
+                id: "C4", name: "Music, Dance & Performance", icon: "fa-masks-theater",
+                coordinator: "Ola Faith Modupe (Faith)",
+                function: "Setting professional standards for stage production and talent.",
+                table: [
+                    { team: "Talent Showcase & Prep", unit: "Talent Showcase Unit, Performance Unit", mandate: "Auditions, coaching & technical delivery." },
+                    { team: "Logistics & Field Ops", unit: "Logistics & Field Unit", mandate: "Venue scouting & technical execution." }
+                ]
+            },
+            {
+                id: "C5", name: "Campus Socials & Trends", icon: "fa-users-rectangle",
+                coordinator: "Abdulsalam Ahmed (Lazywings)",
+                function: "Maximizing mobilization, engagement, and interfaculty unity.",
+                table: [
+                    { team: "Events & Entertainment", unit: "Events & Entertainment Unit", mandate: "Plans Celebrity Game Show format." },
+                    { team: "Mobilization & Logistics", unit: "Logistics & Field Unit", mandate: "Crowd control, venue setup, permits." }
+                ]
+            },
+            {
+                id: "C6", name: "Entrepreneurship & Leadership", icon: "fa-briefcase",
+                coordinator: "Jemimah Emmanuel (Mii_Maa)",
+                function: "Practical skill transfer for wealth creation & strategic management.",
+                table: [
+                    { team: "Financial Literacy", unit: "Stash Hub Finance Unit", mandate: "Manages compliance for 'The Stash Hub'." },
+                    { team: "Mentorship & Network", unit: "Mentorship Unit", mandate: "Coordinates Business Pitch Clinics." }
+                ]
+            },
+            {
+                id: "C7", name: "Student Welfare & Mental Wellness", icon: "fa-heart-pulse",
+                coordinator: "Khadijah Abubakar",
+                function: "Developing psychological resilience and support resources.",
+                table: [
+                    { team: "Resilience & Comms", unit: "Mental Support Unit", mandate: "Runs 'Resilience Room' pilot content." },
+                    { team: "Health Advocacy", unit: "Health Advocacy Unit", mandate: "Runs educational campaigns." }
+                ]
+            },
+            {
+                id: "C8", name: "Academic Excellence & Research", icon: "fa-graduation-cap",
+                coordinator: "Mu'azu Abdulkarim",
+                function: "Promoting institutional credibility, research ethics, and rigor.",
+                table: [
+                    { team: "Academic Support", unit: "Study Group Unit, Tutorials Unit", mandate: "Organizes peer groups & expert sessions." },
+                    { team: "Research & Policy", unit: "Research Unit", mandate: "Teaches proposal writing & ethics." }
+                ]
+            },
+            {
+                id: "C9", name: "Community Service & Civic Action", icon: "fa-hand-holding-hand",
+                coordinator: "Hajara Muhammad DVM",
+                function: "Executing high-impact external projects and partnerships.",
+                table: [
+                    { team: "Project Execution", unit: "Know Your Numbers Unit", mandate: "Manages health screening logistics." },
+                    { team: "Partnership & Advocacy", unit: "Partnership Mobilization Unit", mandate: "Pitches partnership briefs externally." }
+                ]
+            },
+            {
+                id: "C10", name: "Sports, Fitness & Adventure", icon: "fa-person-running",
+                coordinator: "(To Be Recruited)",
+                function: "Physical health, Teamwork, and Adventure.",
+                table: [
+                    { team: "Pending Recruitment", unit: "-", mandate: "Deferred Status." }
+                ]
+            }
+        ];
+
+        // --- 2. DATA FOR PROGRAMS ---
+        const programData = {
+            tier1: [
+                { title: "Renaissance Week", desc: "Multi-day festival showcasing collective output of all 10 clusters.", icon: "fa-crown" },
+                { title: "ABU Talent Arena", desc: "Premier, monetized talent showcase for professional artists.", icon: "fa-microphone" },
+                { title: "Student Innovation Challenge", desc: "Competition for developing solutions to societal problems.", icon: "fa-lightbulb" },
+                { title: "Brain & Body League", desc: "Hybrid championship combining strategy games with athletics.", icon: "fa-dumbbell" }
+            ],
+            tier2: [
+                { title: "Celebrity Game Show", desc: "High-energy quiz bowl featuring campus personalities.", icon: "fa-star" },
+                { title: "Talk Show Platform", desc: "Professional interviews with alumni and industry experts.", icon: "fa-podcast" },
+                { title: "Professional Readiness Toolkit", desc: "Clinics for CVs, interviews, and LinkedIn branding.", icon: "fa-suitcase" },
+                { title: "Community Development Actions", desc: "Organized outreach like the 'Know Your Numbers' Drive.", icon: "fa-hand-holding-medical" }
+            ],
+            tier3: [
+                { title: "Personal Finance 101", desc: "Workshops on budgeting and the 'Stash Hub' savings.", icon: "fa-coins" },
+                { title: "Study Cohort Circles", desc: "Inter-departmental peer-teaching groups.", icon: "fa-book-open" },
+                { title: "Tech Innovation Thursdays", desc: "Hands-on digital skills workshops (AI, Excel).", icon: "fa-laptop-code" },
+                { title: "Public Speaking Rooms", desc: "Practice sessions for confidence and mental resilience.", icon: "fa-comments" }
+            ]
+        };
+
+        // --- 3. RENDER FUNCTIONS ---
+        
+        // Render Charts
+        function renderChart() {
+            const ctx = document.getElementById('competenceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Theory', 'Practical Skills', 'Leadership', 'Resilience', 'Networking', 'Innovation'],
+                    datasets: [{
+                        label: 'Traditional Graduate',
+                        data: [90, 30, 40, 50, 30, 20],
+                        backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                        borderColor: 'rgba(148, 163, 184, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(148, 163, 184, 1)'
+                    }, {
+                        label: 'FSBS Graduate Goal',
+                        data: [95, 90, 85, 90, 85, 80],
+                        backgroundColor: 'rgba(174, 143, 111, 0.2)', // Gold
+                        borderColor: '#AE8F6F',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#AE8F6F'
+                    }]
+                },
+                options: {
+                    scales: { r: { suggestMin: 0, suggestMax: 100, ticks: { display: false } } },
+                    plugins: { legend: { labels: { color: '#FFF' } } },
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Render Clusters
+        function renderClusters() {
+            const grid = document.getElementById('clusterGrid');
+            grid.innerHTML = clusters.map(c => `
+                <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm card-hover cursor-pointer group" onclick="openModal('${c.id}')">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-fsbs-navy/5 text-fsbs-navy rounded-lg flex items-center justify-center text-xl group-hover:bg-fsbs-navy group-hover:text-white transition-colors">
+                            <i class="fa-solid ${c.icon}"></i>
+                        </div>
+                        <span class="text-xs font-bold text-gray-400">${c.id}</span>
+                    </div>
+                    <h3 class="font-serif text-lg font-bold text-fsbs-navy mb-2">${c.name}</h3>
+                    <p class="text-sm text-gray-500 mb-4 line-clamp-2">${c.function}</p>
+                    <div class="text-xs font-bold text-fsbs-gold flex items-center">
+                        VIEW UNITS <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Modal Logic
+        function openModal(id) {
+            const cluster = clusters.find(c => c.id === id);
+            document.getElementById('modalTitle').innerText = `${cluster.id}: ${cluster.name}`;
+            document.getElementById('modalCoordinator').innerText = `Coordinator: ${cluster.coordinator}`;
+            document.getElementById('modalFunction').innerText = cluster.function;
+            
+            const tbody = document.getElementById('modalTableBody');
+            tbody.innerHTML = cluster.table.map(row => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-fsbs-navy">${row.team}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 font-medium">${row.unit}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 italic">${row.mandate}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('clusterModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('clusterModal').classList.add('hidden');
+        }
+
+        // Program Tabs
+        function switchTab(tier) {
+            // Reset styles
+            ['tier1', 'tier2', 'tier3'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.replace('tab-active', 'tab-inactive');
+                document.getElementById(`${t}-content`).classList.add('hidden');
+            });
+            
+            // Active styles
+            document.getElementById(`tab-${tier}`).classList.replace('tab-inactive', 'tab-active');
+            const contentDiv = document.getElementById(`${tier}-content`);
+            contentDiv.classList.remove('hidden');
+            
+            // Render content
+            contentDiv.innerHTML = programData[tier].map(p => `
+                <div class="flex items-start gap-4 p-4 bg-white border border-gray-100 rounded-lg shadow-sm">
+                    <div class="w-10 h-10 bg-fsbs-gold/10 text-fsbs-gold rounded flex-shrink-0 flex items-center justify-center">
+                        <i class="fa-solid ${p.icon}"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-serif font-bold text-fsbs-navy text-base">${p.title}</h4>
+                        <p class="text-sm text-gray-500 mt-1">${p.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            renderChart();
+            renderClusters();
+            switchTab('tier1');
+        });
+
+    </script>
+</body>
+</html>
